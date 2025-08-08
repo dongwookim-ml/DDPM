@@ -14,14 +14,14 @@ Key components:
 """
 
 import math
+from typing import Optional, Tuple, Union
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from torch.nn.modules.normalization import GroupNorm
 
-
-def get_norm(norm, num_channels, num_groups):
+def get_norm(norm: Optional[str], num_channels: int, num_groups: int) -> nn.Module:
     """
     Factory function to create normalization layers.
     
@@ -32,6 +32,9 @@ def get_norm(norm, num_channels, num_groups):
         
     Returns:
         Appropriate normalization layer
+        
+    Raises:
+        ValueError: If unknown normalization type is provided
     """
     if norm == "in":
         return nn.InstanceNorm2d(num_channels, affine=True)
@@ -42,7 +45,7 @@ def get_norm(norm, num_channels, num_groups):
     elif norm is None:
         return nn.Identity()
     else:
-        raise ValueError("unknown normalization type")
+        raise ValueError(f"Unknown normalization type: {norm}. Supported: 'in', 'bn', 'gn', None")
 
 
 class PositionalEmbedding(nn.Module):
@@ -62,13 +65,14 @@ class PositionalEmbedding(nn.Module):
         scale (float): linear scale to be applied to timesteps. Default: 1.0
     """
 
-    def __init__(self, dim, scale=1.0):
+    def __init__(self, dim: int, scale: float = 1.0) -> None:
         super().__init__()
-        assert dim % 2 == 0  # Dimension must be even for sin/cos pairs
+        if dim % 2 != 0:
+            raise ValueError(f"Embedding dimension must be even, got {dim}")
         self.dim = dim
         self.scale = scale
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Generate sinusoidal positional embeddings for timesteps.
         
@@ -76,10 +80,11 @@ class PositionalEmbedding(nn.Module):
         to create unique embeddings for each timestep.
         """
         device = x.device
+        dtype = x.dtype
         half_dim = self.dim // 2
         # Create frequency scaling factors
         emb = math.log(10000) / half_dim
-        emb = torch.exp(torch.arange(half_dim, device=device) * -emb)
+        emb = torch.exp(torch.arange(half_dim, device=device, dtype=dtype) * -emb)
         # Apply frequencies to scaled timesteps
         emb = torch.outer(x * self.scale, emb)
         # Concatenate sin and cos components
@@ -104,17 +109,17 @@ class Downsample(nn.Module):
         in_channels (int): number of input channels
     """
 
-    def __init__(self, in_channels):
+    def __init__(self, in_channels: int) -> None:
         super().__init__()
         # Use strided convolution for downsampling
         self.downsample = nn.Conv2d(in_channels, in_channels, 3, stride=2, padding=1)
     
-    def forward(self, x, time_emb, y):
+    def forward(self, x: torch.Tensor, time_emb: Optional[torch.Tensor], y: Optional[torch.Tensor]) -> torch.Tensor:
         # Validate input dimensions for downsampling
         if x.shape[2] % 2 == 1:
-            raise ValueError("downsampling tensor height should be even")
+            raise ValueError(f"Downsampling tensor height should be even, got {x.shape[2]}")
         if x.shape[3] % 2 == 1:
-            raise ValueError("downsampling tensor width should be even")
+            raise ValueError(f"Downsampling tensor width should be even, got {x.shape[3]}")
 
         return self.downsample(x)
 
@@ -136,7 +141,7 @@ class Upsample(nn.Module):
         in_channels (int): number of input channels
     """
 
-    def __init__(self, in_channels):
+    def __init__(self, in_channels: int) -> None:
         super().__init__()
         # Use resize + convolution to avoid checkerboard artifacts
         self.upsample = nn.Sequential(
@@ -144,7 +149,7 @@ class Upsample(nn.Module):
             nn.Conv2d(in_channels, in_channels, 3, padding=1),
         )
     
-    def forward(self, x, time_emb, y):
+    def forward(self, x: torch.Tensor, time_emb: Optional[torch.Tensor], y: Optional[torch.Tensor]) -> torch.Tensor:
         return self.upsample(x)
 
 
@@ -166,7 +171,7 @@ class AttentionBlock(nn.Module):
         num_groups (int): number of groups used in group normalization. Default: 32
     """
     
-    def __init__(self, in_channels, norm="gn", num_groups=32):
+    def __init__(self, in_channels: int, norm: str = "gn", num_groups: int = 32) -> None:
         super().__init__()
         
         self.in_channels = in_channels
@@ -176,7 +181,7 @@ class AttentionBlock(nn.Module):
         # Output projection
         self.to_out = nn.Conv2d(in_channels, in_channels, 1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         b, c, h, w = x.shape
         # Generate Q, K, V and split them
         q, k, v = torch.split(self.to_qkv(self.norm(x)), self.in_channels, dim=1)
@@ -186,15 +191,19 @@ class AttentionBlock(nn.Module):
         k = k.view(b, c, h * w)  # (b, c, hw)
         v = v.permute(0, 2, 3, 1).view(b, h * w, c)  # (b, hw, c)
 
-        # Compute attention scores with scaling
-        dot_products = torch.bmm(q, k) * (c ** (-0.5))
-        assert dot_products.shape == (b, h * w, h * w)
+        # Use torch.no_grad() for memory efficiency during attention computation
+        with torch.cuda.amp.autocast(enabled=False):  # Disable autocast for numerical stability
+            # Compute attention scores with scaling
+            dot_products = torch.bmm(q, k) * (c ** (-0.5))
+            if dot_products.shape != (b, h * w, h * w):
+                raise RuntimeError(f"Attention shape mismatch: expected {(b, h * w, h * w)}, got {dot_products.shape}")
 
-        # Apply softmax to get attention weights
-        attention = torch.softmax(dot_products, dim=-1)
-        # Apply attention to values
-        out = torch.bmm(attention, v)
-        assert out.shape == (b, h * w, c)
+            # Apply softmax to get attention weights
+            attention = torch.softmax(dot_products, dim=-1)
+            # Apply attention to values
+            out = torch.bmm(attention, v)
+            if out.shape != (b, h * w, c):
+                raise RuntimeError(f"Output shape mismatch: expected {(b, h * w, c)}, got {out.shape}")
         
         # Reshape back to spatial dimensions
         out = out.view(b, h, w, c).permute(0, 3, 1, 2)
@@ -231,16 +240,16 @@ class ResidualBlock(nn.Module):
 
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        dropout,
-        time_emb_dim=None,
-        num_classes=None,
-        activation=F.relu,
-        norm="gn",
-        num_groups=32,
-        use_attention=False,
-    ):
+        in_channels: int,
+        out_channels: int,
+        dropout: float,
+        time_emb_dim: Optional[int] = None,
+        num_classes: Optional[int] = None,
+        activation: callable = F.relu,
+        norm: str = "gn",
+        num_groups: int = 32,
+        use_attention: bool = False,
+    ) -> None:
         super().__init__()
 
         self.activation = activation
@@ -265,7 +274,7 @@ class ResidualBlock(nn.Module):
         # Optional attention
         self.attention = nn.Identity() if not use_attention else AttentionBlock(out_channels, norm, num_groups)
     
-    def forward(self, x, time_emb=None, y=None):
+    def forward(self, x: torch.Tensor, time_emb: Optional[torch.Tensor] = None, y: Optional[torch.Tensor] = None) -> torch.Tensor:
         # First convolution block
         out = self.activation(self.norm_1(x))
         out = self.conv_1(out)
@@ -273,14 +282,14 @@ class ResidualBlock(nn.Module):
         # Add time conditioning if specified
         if self.time_bias is not None:
             if time_emb is None:
-                raise ValueError("time conditioning was specified but time_emb is not passed")
+                raise ValueError("Time conditioning was specified but time_emb is not passed")
             # Add time bias with spatial broadcasting
             out += self.time_bias(self.activation(time_emb))[:, :, None, None]
 
         # Add class conditioning if specified
         if self.class_bias is not None:
             if y is None:
-                raise ValueError("class conditioning was specified but y is not passed")
+                raise ValueError("Class conditioning was specified but y is not passed")
             # Add class bias with spatial broadcasting
             out += self.class_bias(y)[:, :, None, None]
 
@@ -330,20 +339,20 @@ class UNet(nn.Module):
 
     def __init__(
         self,
-        img_channels,
-        base_channels,
-        channel_mults=(1, 2, 4, 8),
-        num_res_blocks=2,
-        time_emb_dim=None,
-        time_emb_scale=1.0,
-        num_classes=None,
-        activation=F.relu,
-        dropout=0.1,
-        attention_resolutions=(),
-        norm="gn",
-        num_groups=32,
-        initial_pad=0,
-    ):
+        img_channels: int,
+        base_channels: int,
+        channel_mults: Tuple[int, ...] = (1, 2, 4, 8),
+        num_res_blocks: int = 2,
+        time_emb_dim: Optional[int] = None,
+        time_emb_scale: float = 1.0,
+        num_classes: Optional[int] = None,
+        activation: callable = F.relu,
+        dropout: float = 0.1,
+        attention_resolutions: Tuple[int, ...] = (),
+        norm: str = "gn",
+        num_groups: int = 32,
+        initial_pad: int = 0,
+    ) -> None:
         super().__init__()
 
         self.activation = activation
@@ -447,24 +456,55 @@ class UNet(nn.Module):
                 self.ups.append(Upsample(now_channels))
         
         # Ensure all skip connections were used
-        assert len(channels) == 0
+        if len(channels) != 0:
+            raise RuntimeError(f"Not all skip connections were used: {len(channels)} remaining")
         
         # Final output layers
         self.out_norm = get_norm(norm, base_channels, num_groups)
         self.out_conv = nn.Conv2d(base_channels, img_channels, 3, padding=1)
+        
+        # Initialize weights for better training stability
+        self._init_weights()
     
-    def forward(self, x, time=None, y=None):
+    def _init_weights(self) -> None:
+        """Initialize weights using Xavier/Glorot initialization for better training stability."""
+        for module in self.modules():
+            if isinstance(module, nn.Conv2d):
+                nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
+            elif isinstance(module, nn.Linear):
+                nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
+            elif isinstance(module, (nn.GroupNorm, nn.BatchNorm2d, nn.InstanceNorm2d)):
+                if module.weight is not None:
+                    nn.init.ones_(module.weight)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
+    
+    def forward(self, x: torch.Tensor, time: Optional[torch.Tensor] = None, y: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Forward pass of the U-Net.
         
         Args:
-            x: Input noisy images
-            time: Timestep values for time conditioning
-            y: Class labels for class conditioning
+            x: Input noisy images [B, C, H, W]
+            time: Timestep values for time conditioning [B]
+            y: Class labels for class conditioning [B]
             
         Returns:
-            Predicted noise with same shape as input
+            Predicted noise with same shape as input [B, C, H, W]
+            
+        Raises:
+            ValueError: If required conditioning is missing or invalid input dimensions
         """
+        # Input validation
+        if x.dim() != 4:
+            raise ValueError(f"Input tensor must be 4D [B, C, H, W], got {x.dim()}D with shape {x.shape}")
+        
+        if x.size(1) != self.init_conv.in_channels:
+            raise ValueError(f"Input channels mismatch: expected {self.init_conv.in_channels}, got {x.size(1)}")
+        
         # Apply initial padding if needed (for non-power-of-2 dimensions)
         ip = self.initial_pad
         if ip != 0:
@@ -473,14 +513,14 @@ class UNet(nn.Module):
         # Process time embedding
         if self.time_mlp is not None:
             if time is None:
-                raise ValueError("time conditioning was specified but tim is not passed")
+                raise ValueError("Time conditioning was specified but time is not passed")
             time_emb = self.time_mlp(time)
         else:
             time_emb = None
         
         # Validate class conditioning
         if self.num_classes is not None and y is None:
-            raise ValueError("class conditioning was specified but y is not passed")
+            raise ValueError("Class conditioning was specified but y is not passed")
         
         # Initial convolution
         x = self.init_conv(x)
@@ -513,3 +553,28 @@ class UNet(nn.Module):
             return x[:, :, ip:-ip, ip:-ip]
         else:
             return x
+    
+    def get_model_info(self) -> dict:
+        """
+        Get model information including parameter count and memory usage.
+        
+        Returns:
+            Dictionary containing model statistics
+        """
+        total_params = sum(p.numel() for p in self.parameters())
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        
+        # Estimate model size in MB (assuming float32)
+        model_size_mb = total_params * 4 / (1024 ** 2)
+        
+        return {
+            "total_parameters": total_params,
+            "trainable_parameters": trainable_params,
+            "model_size_mb": round(model_size_mb, 2),
+            "img_channels": self.init_conv.in_channels,
+            "output_channels": self.out_conv.out_channels,
+            "base_channels": self.init_conv.out_channels,
+            "has_time_conditioning": self.time_mlp is not None,
+            "has_class_conditioning": self.num_classes is not None,
+            "num_classes": self.num_classes,
+        }
