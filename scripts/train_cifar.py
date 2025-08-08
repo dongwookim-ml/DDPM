@@ -17,15 +17,18 @@ Usage:
 
 import argparse
 import datetime
+import os
+from typing import Optional
+
 import torch
 import wandb
-
 from torch.utils.data import DataLoader
 from torchvision import datasets
+
 from ddpm import script_utils
 
 
-def main():
+def main() -> None:
     """Main training loop for DDPM on CIFAR-10."""
     args = create_argparser().parse_args()
     device = args.device
@@ -169,7 +172,7 @@ def main():
         print("Keyboard interrupt, run finished early")
 
 
-def create_argparser():
+def create_argparser() -> argparse.ArgumentParser:
     """
     Create command line argument parser for training script.
     

@@ -16,13 +16,16 @@ Usage:
 """
 
 import argparse
+import os
+from typing import Optional
+
 import torch
 import torchvision
 
 from ddpm import script_utils
 
 
-def main():
+def main() -> None:
     """Main function for generating and saving images from trained DDPM model."""
     args = create_argparser().parse_args()
     device = args.device
@@ -61,7 +64,7 @@ def main():
         print("Keyboard interrupt, generation finished early")
 
 
-def create_argparser():
+def create_argparser() -> argparse.ArgumentParser:
     """
     Create command line argument parser for sampling script.
     
