@@ -7,8 +7,12 @@ model creation functions.
 """
 
 import argparse
-import torchvision
+from typing import Any, Dict, Iterator, Tuple
+
+import torch
 import torch.nn.functional as F
+import torchvision
+import torchvision.transforms as transforms
 
 from .unet import UNet
 from .diffusion import (
@@ -18,7 +22,7 @@ from .diffusion import (
 )
 
 
-def cycle(dl):
+def cycle(dl: torch.utils.data.DataLoader) -> Iterator[Any]:
     """
     Create an infinite generator from a DataLoader.
     
@@ -38,7 +42,7 @@ def cycle(dl):
             yield data
 
 
-def get_transform():
+def get_transform() -> transforms.Compose:
     """
     Get the image preprocessing transform for DDPM training.
     
@@ -49,18 +53,18 @@ def get_transform():
     Returns:
         torchvision.transforms.Compose: Transform pipeline
     """
-    class RescaleChannels(object):
+    class RescaleChannels:
         """Custom transform to rescale image values from [0,1] to [-1,1]"""
-        def __call__(self, sample):
+        def __call__(self, sample: torch.Tensor) -> torch.Tensor:
             return 2 * sample - 1
 
-    return torchvision.transforms.Compose([
-        torchvision.transforms.ToTensor(),
+    return transforms.Compose([
+        transforms.ToTensor(),
         RescaleChannels(),
     ])
 
 
-def str2bool(v):
+def str2bool(v: Any) -> bool:
     """
     Convert string argument to boolean value.
     
@@ -84,7 +88,7 @@ def str2bool(v):
         raise argparse.ArgumentTypeError("boolean value expected")
 
 
-def add_dict_to_argparser(parser, default_dict):
+def add_dict_to_argparser(parser: argparse.ArgumentParser, default_dict: Dict[str, Any]) -> None:
     """
     Add dictionary of default values as command line arguments to parser.
     
@@ -107,7 +111,7 @@ def add_dict_to_argparser(parser, default_dict):
         parser.add_argument(f"--{k}", default=v, type=v_type)
 
 
-def diffusion_defaults():
+def diffusion_defaults() -> Dict[str, Any]:
     """
     Get default hyperparameters for diffusion model training.
     
@@ -146,7 +150,7 @@ def diffusion_defaults():
     return defaults
 
 
-def get_diffusion_from_args(args):
+def get_diffusion_from_args(args: argparse.Namespace) -> GaussianDiffusion:
     """
     Create a diffusion model from command line arguments.
     

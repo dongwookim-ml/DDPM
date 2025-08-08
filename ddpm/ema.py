@@ -5,7 +5,13 @@ This module implements EMA for model parameters, which helps stabilize training
 and often improves the quality of generated samples in diffusion models.
 """
 
-class EMA():
+from typing import Optional
+
+import torch
+import torch.nn as nn
+
+
+class EMA:
     """
     Exponential Moving Average for model parameters.
     
@@ -16,7 +22,7 @@ class EMA():
     The EMA update rule is: ema_param = decay * ema_param + (1 - decay) * current_param
     """
     
-    def __init__(self, decay):
+    def __init__(self, decay: float) -> None:
         """
         Initialize EMA with given decay rate.
         
@@ -24,9 +30,11 @@ class EMA():
             decay: Decay rate for EMA (typically close to 1.0, e.g., 0.9999)
                   Higher values mean slower updates to the EMA parameters
         """
+        if not (0.0 <= decay <= 1.0):
+            raise ValueError(f"Decay rate must be between 0.0 and 1.0, got {decay}")
         self.decay = decay
     
-    def update_average(self, old, new):
+    def update_average(self, old: Optional[torch.Tensor], new: torch.Tensor) -> torch.Tensor:
         """
         Update a single EMA value with a new value.
         
@@ -41,7 +49,7 @@ class EMA():
             return new
         return old * self.decay + (1 - self.decay) * new
 
-    def update_model_average(self, ema_model, current_model):
+    def update_model_average(self, ema_model: nn.Module, current_model: nn.Module) -> None:
         """
         Update all EMA model parameters with current model parameters.
         

@@ -4,7 +4,12 @@ Utility Functions for DDPM
 This module contains helper functions used throughout the DDPM implementation.
 """
 
-def extract(a, t, x_shape):
+from typing import Tuple
+
+import torch
+
+
+def extract(a: torch.Tensor, t: torch.Tensor, x_shape: Tuple[int, ...]) -> torch.Tensor:
     """
     Extract values from tensor 'a' at indices 't' and reshape for broadcasting.
     

@@ -11,13 +11,14 @@ Key concepts:
 - Beta schedule: Controls the amount of noise added at each timestep
 """
 
+from copy import deepcopy
+from functools import partial
+from typing import Optional, Tuple, Union
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from functools import partial
-from copy import deepcopy
 
 from .ema import EMA  # Exponential Moving Average for model weights
 from .utils import extract  # Utility function for tensor indexing
@@ -42,16 +43,16 @@ class GaussianDiffusion(nn.Module):
     """
     def __init__(
         self,
-        model,
-        img_size,
-        img_channels,
-        num_classes,
-        betas,
-        loss_type="l2",
-        ema_decay=0.9999,
-        ema_start=5000,
-        ema_update_rate=1,
-    ):
+        model: nn.Module,
+        img_size: Tuple[int, int],
+        img_channels: int,
+        num_classes: int,
+        betas: np.ndarray,
+        loss_type: str = "l2",
+        ema_decay: float = 0.9999,
+        ema_start: int = 5000,
+        ema_update_rate: int = 1,
+    ) -> None:
         super().__init__()
 
         # Store the main model and create a copy for Exponential Moving Average (EMA)
@@ -73,7 +74,7 @@ class GaussianDiffusion(nn.Module):
 
         # Validate loss type
         if loss_type not in ["l1", "l2"]:
-            raise ValueError("__init__() got unknown loss type")
+            raise ValueError(f"Unknown loss type: {loss_type}. Supported: 'l1', 'l2'")
 
         self.loss_type = loss_type
         self.num_timesteps = len(betas)
@@ -108,7 +109,7 @@ class GaussianDiffusion(nn.Module):
         # Standard deviation for sampling during reverse process
         self.register_buffer("sigma", to_torch(np.sqrt(betas)))
 
-    def update_ema(self):
+    def update_ema(self) -> None:
         """
         Update the Exponential Moving Average (EMA) model weights.
         
@@ -127,7 +128,7 @@ class GaussianDiffusion(nn.Module):
                 self.ema.update_model_average(self.ema_model, self.model)
 
     @torch.no_grad()
-    def remove_noise(self, x, t, y, use_ema=True):
+    def remove_noise(self, x: torch.Tensor, t: torch.Tensor, y: Optional[torch.Tensor], use_ema: bool = True) -> torch.Tensor:
         """
         Remove noise from a noisy image at timestep t using the trained model.
         
@@ -155,7 +156,7 @@ class GaussianDiffusion(nn.Module):
             )
 
     @torch.no_grad()
-    def sample(self, batch_size, device, y=None, use_ema=True):
+    def sample(self, batch_size: int, device: torch.device, y: Optional[torch.Tensor] = None, use_ema: bool = True) -> torch.Tensor:
         """
         Generate new images by sampling from the diffusion model.
         
@@ -172,7 +173,7 @@ class GaussianDiffusion(nn.Module):
             Generated images tensor of shape (batch_size, channels, height, width)
         """
         if y is not None and batch_size != len(y):
-            raise ValueError("sample batch size different from length of given y")
+            raise ValueError(f"Sample batch size ({batch_size}) different from length of given y ({len(y)})")
 
         # Start with pure noise from a standard Gaussian distribution
         x = torch.randn(batch_size, self.img_channels, *self.img_size, device=device)
@@ -191,7 +192,7 @@ class GaussianDiffusion(nn.Module):
         return x.cpu().detach()
 
     @torch.no_grad()
-    def sample_diffusion_sequence(self, batch_size, device, y=None, use_ema=True):
+    def sample_diffusion_sequence(self, batch_size: int, device: torch.device, y: Optional[torch.Tensor] = None, use_ema: bool = True) -> torch.Tensor:
         """
         Generate new images and return the full diffusion sequence for visualization.
         
@@ -208,7 +209,7 @@ class GaussianDiffusion(nn.Module):
             List of image tensors showing the denoising progression
         """
         if y is not None and batch_size != len(y):
-            raise ValueError("sample batch size different from length of given y")
+            raise ValueError(f"Sample batch size ({batch_size}) different from length of given y ({len(y)})")
 
         # Start with pure noise
         x = torch.randn(batch_size, self.img_channels, *self.img_size, device=device)
@@ -226,7 +227,7 @@ class GaussianDiffusion(nn.Module):
         
         return diffusion_sequence
 
-    def perturb_x(self, x, t, noise):
+    def perturb_x(self, x: torch.Tensor, t: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
         """
         Apply the forward diffusion process - add noise to clean images.
         
@@ -246,7 +247,7 @@ class GaussianDiffusion(nn.Module):
             extract(self.sqrt_one_minus_alphas_cumprod, t, x.shape) * noise
         )   
 
-    def get_losses(self, x, t, y):
+    def get_losses(self, x: torch.Tensor, t: torch.Tensor, y: Optional[torch.Tensor]) -> torch.Tensor:
         """
         Calculate the training loss for the diffusion model.
         
@@ -277,7 +278,7 @@ class GaussianDiffusion(nn.Module):
 
         return loss
 
-    def forward(self, x, y=None):
+    def forward(self, x: torch.Tensor, y: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Forward pass for training - applies random timestep noise and calculates loss.
         
@@ -293,16 +294,18 @@ class GaussianDiffusion(nn.Module):
 
         # Validate input dimensions
         if h != self.img_size[0]:
-            raise ValueError("image height does not match diffusion parameters")
-        if w != self.img_size[0]:
-            raise ValueError("image width does not match diffusion parameters")
+            raise ValueError(f"Image height ({h}) does not match diffusion parameters ({self.img_size[0]})")
+        if w != self.img_size[1]:
+            raise ValueError(f"Image width ({w}) does not match diffusion parameters ({self.img_size[1]})")
+        if c != self.img_channels:
+            raise ValueError(f"Image channels ({c}) does not match diffusion parameters ({self.img_channels})")
         
         # Sample random timesteps for each image in the batch
         t = torch.randint(0, self.num_timesteps, (b,), device=device)
         return self.get_losses(x, t, y)
 
 
-def generate_cosine_schedule(T, s=0.008):
+def generate_cosine_schedule(T: int, s: float = 0.008) -> np.ndarray:
     """
     Generate a cosine beta schedule for the diffusion process.
     
@@ -317,7 +320,7 @@ def generate_cosine_schedule(T, s=0.008):
     Returns:
         np.array: Beta values for each timestep
     """
-    def f(t, T):
+    def f(t: int, T: int) -> float:
         return (np.cos((t / T + s) / (1 + s) * np.pi / 2)) ** 2
     
     alphas = []
@@ -334,7 +337,7 @@ def generate_cosine_schedule(T, s=0.008):
     return np.array(betas)
 
 
-def generate_linear_schedule(T, low, high):
+def generate_linear_schedule(T: int, low: float, high: float) -> np.ndarray:
     """
     Generate a linear beta schedule for the diffusion process.
     
