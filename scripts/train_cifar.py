@@ -48,7 +48,7 @@ def main():
 
             run = wandb.init(
                 project=args.project_name,
-                entity='treaptofun',  # Replace with your W&B username
+                entity='dongwoo-kim-postech',  # Your W&B username
                 config=vars(args),
                 name=args.run_name,
             )
@@ -215,6 +215,10 @@ def create_argparser():
 if __name__ == "__main__":
     main()
 
-
-if __name__ == "__main__":
-    main()
+# This script is intended to be run directly, not imported as a module
+# It will train a DDPM model on CIFAR-10 dataset with specified hyperparameters
+# and log results to Weights & Biases if enabled.
+# Ensure you have the required packages installed:
+# pip install torch torchvision wandb ddpm
+# Adjust the import paths as necessary based on your project structure.
+# Make sure to set up your Weights & Biases account and project before running.

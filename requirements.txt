@@ -1,0 +1,33 @@
+# Core PyTorch dependencies
+torch==2.8.0
+torchvision==0.23.0
+
+# Machine Learning utilities
+numpy==2.2.6
+einops==0.8.1
+
+# Experiment tracking and logging
+wandb==0.21.1
+
+# Data processing and utilities
+joblib==1.5.1
+pillow==11.3.0
+
+# Configuration and YAML support
+pyyaml==6.0.2
+
+# Development and testing (optional)
+# pytest>=7.0.0
+# pytest-cov>=4.0.0
+
+# Jupyter notebook support (optional)
+# jupyter>=1.0.0
+# ipykernel>=6.0.0
+
+# Additional utilities for visualization (optional)
+# tqdm>=4.64.0
+# matplotlib>=3.5.0
+# seaborn>=0.11.0
+
+# Scientific computing (optional)
+# scipy>=1.9.0

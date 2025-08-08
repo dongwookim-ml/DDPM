@@ -1,4 +1,124 @@
+# Virtual environments
 ddpm_env/
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and editor files
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 *.egg-info/
+build/
+dist/
+*.egg
+.installed.cfg
+MANIFEST
+
+# Machine Learning specific
+# Model checkpoints and saved models
+*.pth
+*.pt
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.ckpt
+checkpoint/
+checkpoints/
+models/
+saved_models/
+
+# Datasets and data files
+data/
+dataset/
+datasets/
+*.npy
+*.npz
+*.mat
+*.hdf
+cifar_train/
+cifar_test/
+cifar-10-batches-py/
+cifar-10-python.tar.gz
+
+# Wandb logs and artifacts
+wandb/
+.wandb/
+
+# TensorBoard logs
+runs/
+logs/
+tb_logs/
+tensorboard_logs/
+
+# Training outputs and logs
+output/
+outputs/
+results/
+experiments/
+~/ddpm_logs/
+ddpm_logs/
+
+# Generated images and samples
+samples/
+generated/
+generated_images/
+*.png
+*.jpg
+*.jpeg
+*.gif
+# Keep resources folder images
+!resources/*.png
+!resources/*.gif
+!resources/*.jpg
+!resources/*.jpeg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Large files
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Configuration files with sensitive information
+config.yaml
+config.json
+secrets.yaml
+.env.local
+.env.production
