@@ -35,7 +35,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 from torchvision import datasets, transforms
 import wandb
 
-from ddpm import script_utils
+from ddpm.utils import script_utils
 
 
 class GPUMonitor:

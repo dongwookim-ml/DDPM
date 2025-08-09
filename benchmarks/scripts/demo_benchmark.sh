@@ -7,7 +7,7 @@ echo "🚀 Quick GPU Benchmark Demo"
 echo "============================"
 
 # Activate environment
-source ddpm_env/bin/activate
+source ../../ddpm_env/bin/activate
 
 echo "This demo will run a quick comparison between 1 GPU and 8 GPUs"
 echo "using a small batch size and limited steps for demonstration."
@@ -25,7 +25,7 @@ echo "Starting quick benchmark..."
 echo ""
 
 # Run with smaller settings for demo
-python benchmark_gpu_training.py \
+python ../benchmark_gpu_training.py \
     --batch_size 8 \
     --num_workers 2 \
     --output_dir "demo_benchmark_$(date +%Y%m%d_%H%M%S)"

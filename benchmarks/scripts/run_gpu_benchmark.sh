@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/b# Activate environment
+source ../../ddpm_env/bin/activateh
 
 # GPU Benchmark Launcher Script
 # Usage: bash run_gpu_benchmark.sh [options]
@@ -86,7 +87,7 @@ echo ""
 
 # Run the benchmark
 echo "🏃‍♂️ Starting benchmark..."
-python benchmark_gpu_training.py \
+python ../benchmark_gpu_training.py \
     --batch_size $BATCH_SIZE \
     --num_workers $NUM_WORKERS \
     --output_dir $OUTPUT_DIR \

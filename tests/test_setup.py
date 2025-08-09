@@ -33,7 +33,9 @@ def test_imports():
         print("✓ DDPM package imported successfully")
         
         # Test individual modules
-        from ddpm import diffusion, unet, ema, utils, script_utils
+        from ddpm.models import diffusion, unet
+        from ddpm.training import ema, utils
+        from ddpm.utils import script_utils
         print("✓ All DDPM modules imported successfully")
         
         return True

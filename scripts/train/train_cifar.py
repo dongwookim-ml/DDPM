@@ -25,7 +25,7 @@ import wandb
 from torch.utils.data import DataLoader
 from torchvision import datasets
 
-from ddpm import script_utils
+from ddpm.utils import script_utils
 
 
 def main() -> None:

@@ -38,8 +38,8 @@ MANIFEST
 *.ckpt
 checkpoint/
 checkpoints/
-models/
 saved_models/
+model_checkpoints/
 
 # Datasets and data files
 data/

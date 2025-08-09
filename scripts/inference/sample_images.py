@@ -22,7 +22,7 @@ from typing import Optional
 import torch
 import torchvision
 
-from ddpm import script_utils
+from ddpm.utils import script_utils
 
 
 def main() -> None:

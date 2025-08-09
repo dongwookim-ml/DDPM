@@ -41,7 +41,7 @@ def test_model_creation():
     """Test model creation and basic operations."""
     print("🧪 Testing model creation...")
     
-    from ddpm import script_utils
+    from ddpm.utils import script_utils
     import argparse
     
     # Test model creation

@@ -30,7 +30,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchvision import datasets
-from ddpm import script_utils
+from ddpm.utils import script_utils
 
 # Suppress gradient stride warnings that can slow down training
 warnings.filterwarnings("ignore", message="Grad strides do not match bucket view strides")
