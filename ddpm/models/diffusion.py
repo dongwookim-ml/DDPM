@@ -20,8 +20,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .ema import EMA  # Exponential Moving Average for model weights
-from .utils import extract  # Utility function for tensor indexing
+from ..training.ema import EMA  # Exponential Moving Average for model weights
+from ..training.utils import extract  # Utility function for tensor indexing
 
 class GaussianDiffusion(nn.Module):
     __doc__ = r"""Gaussian Diffusion model. Forwarding through the module returns diffusion reversal scalar loss tensor.
