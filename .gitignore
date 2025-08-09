@@ -72,6 +72,15 @@ experiments/
 ~/ddpm_logs/
 ddpm_logs/
 
+# Benchmark results
+benchmark_results_*/
+demo_benchmark_*/
+*_benchmark_results/
+benchmark_*.json
+benchmark_*.csv
+performance_*.png
+gpu_benchmark_*.png
+
 # Generated images and samples
 samples/
 generated/
