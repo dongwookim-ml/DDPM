@@ -192,7 +192,7 @@ class AttentionBlock(nn.Module):
         v = v.permute(0, 2, 3, 1).view(b, h * w, c)  # (b, hw, c)
 
         # Use torch.no_grad() for memory efficiency during attention computation
-        with torch.cuda.amp.autocast(enabled=False):  # Disable autocast for numerical stability
+        with torch.amp.autocast('cuda', enabled=False):  # Disable autocast for numerical stability
             # Compute attention scores with scaling
             dot_products = torch.bmm(q, k) * (c ** (-0.5))
             if dot_products.shape != (b, h * w, h * w):
