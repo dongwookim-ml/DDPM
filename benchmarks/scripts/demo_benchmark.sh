@@ -25,7 +25,8 @@ echo "Starting quick benchmark..."
 echo ""
 
 # Run with smaller settings for demo
-python ../benchmark_gpu_training.py \
+cd "$(dirname "$0")/.."
+python benchmark_gpu_training.py \
     --batch_size 8 \
     --num_workers 2 \
     --output_dir "demo_benchmark_$(date +%Y%m%d_%H%M%S)"

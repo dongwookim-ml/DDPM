@@ -14,8 +14,8 @@ import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 
-from .unet import UNet
-from .diffusion import (
+from ..models.unet import UNet
+from ..models.diffusion import (
     GaussianDiffusion,
     generate_linear_schedule,
     generate_cosine_schedule,
